@@ -1,0 +1,237 @@
+#Prompt 1: Understand an Algorithm Through Step-by-Step Analysis
+
+ It is a weighted scoring algorithm, which wokrs to turn a task’s properties into
+  one final numeric score.
+The higher the score, the more important the task is considered.
+The algorithm begins with zero and then adds or subtracts points.
+
+priority_scores = {
+    TaskPriority.LOW: 10,
+    TaskPriority.MEDIUM: 20,
+    TaskPriority.HIGH: 40,
+    TaskPriority.URGENT: 60
+}
+score += priority_scores.get(task.priority, 0)
+
+{This gives every task a starting importance level based on its priority.
+  Meaning:
+    LOW tasks start low
+    URGENT tasks start much higher
+This is the strongest single factor in the scoring model.}
+
+if task.due_date:
+    days_until_due = (task.due_date.date() - datetime.now().date()).days
+    if days_until_due < 0:
+        score += 35
+    elif days_until_due == 0:
+        score += 20
+    elif days_until_due <= 2:
+        score += 15
+    elif days_until_due <= 7:
+        score += 10
+
+{This increases the score when the task deadline is close or already passed.
+    Meaning:
+        overdue tasks get the biggest boost
+        tasks due today also get a strong boost
+        tasks due soon get a smaller boost
+This section captures time pressure.}
+
+if task.status == TaskStatus.DONE:
+    score -= 50
+elif task.status == TaskStatus.REVIEW:
+    score -= 15
+
+{This lowers the score for tasks that are already completed or near completion.
+     Meaning:
+         DONE tasks become much less important
+         REVIEW tasks are slightly less urgent than active unfinished tasks
+This section captures workflow stage.}
+
+
+
+#Prompt 2: Decipher Code with Unclear Intent or Poor Documentation
+
+The current names are not terrible, but they can be improved to make 
+the business intent clearer.
+
+Better function name
+Current:
+     calculate_task_score
+Best choice:
+     compute_task_importance_score
+Why:
+It makes it clear that the score is about importance, 
+not just any random score.
+
+//Better intent-driven rewrite of names
+
+If rewritten for readability, the core idea would look like this 
+conceptually:
+
+            compute_task_importance_score(task)
+            importance_score = 0
+            base_priority_weights = {...}
+            days_until_due_date = ...
+            days_since_last_update = ...
+These names tell the reader:
+      “This function is not scoring quality or
+      performance — it is scoring priority importance.”
+
+    //2. Programming patterns or techniques being used
+
+    #Heuristic-based decision making
+The rules are not mathematically derived. They are human-chosen.
+     For example:
+         overdue = +35
+         done = -50
+         urgent tag = +8
+These values are heuristics. They represent business judgment.
+
+    #Additive scoring model
+Instead of using nested logic like:
+         first check priority
+         then compare due date
+         then compare tags
+the function reduces all factors into one number using addition and subtraction.
+This makes sorting easier later.
+
+##Mental interpretation of the code
+     This function is basically acting like a task triage engine.
+It asks:
+         How urgent is the task?
+         How close is the deadline?
+         Is it already done?
+         Does it have warning tags?
+         Is it still active?
+Then it combines all of those answers into one score.
+
+#Prompt 3: Understand Complex Logic and Control Flow
+
+//1. Visual representation of the control flow
+
+Start
+ |
+ v
+Set score = 0
+ |
+ v
+Look up task priority
+ |
+ v
+Add base priority score
+ |
+ v
+Does task have a due date?
+ |-------------------- No --------------------|
+ |                                            |
+ Yes                                          v
+ |                                      Skip due-date scoring
+ v
+Calculate days_until_due
+ |
+ v
+Is task overdue? (days_until_due < 0)
+ |---- Yes --> add 35
+ |
+ No
+ |
+ v
+Is task due today? (days_until_due == 0)
+ |---- Yes --> add 20
+ |
+ No
+ |
+ v
+Is task due within 2 days? (days_until_due <= 2)
+ |---- Yes --> add 15
+ |
+ No
+ |
+ v
+Is task due within 7 days? (days_until_due <= 7)
+ |---- Yes --> add 10
+ |
+ No
+ |
+ v
+Check task status
+ |
+ v
+Is status DONE?
+ |---- Yes --> subtract 50
+ |
+ No
+ |
+ v
+Is status REVIEW?
+ |---- Yes --> subtract 15
+ |
+ No
+ |
+ v
+Check tags
+ |
+ v
+Does task contain blocker/critical/urgent tag?
+ |---- Yes --> add 8
+ |
+ No
+ |
+ v
+Check updated_at
+ |
+ v
+Was task updated in less than 1 day?
+ |---- Yes --> add 5
+ |
+ No
+ |
+ v
+Return final score
+
+The function does not branch into separate large paths. 
+It is mostly a step-by-step scoring pipeline:
+         base score
+         due date adjustment
+         status adjustment
+         tag adjustment
+         recent activity adjustment
+Each section contributes independently to the final score.
+
+Reflection:
+
+The AI’s explanation helped me move from just reading the code to actually 
+understanding its purpose and design. Initially, I saw the function
+ as a set of unrelated conditions, but the explanation showed me that it is
+  a weighted scoring system used to rank tasks based on importance.
+
+Even after the explanation, a few areas remained unclear:
+        The reason behind specific weight values (e.g., why overdue is +35 
+             or DONE is -50) — these seem arbitrary and not clearly justified.
+        The recent update boost (+5) — it is not obvious why recently updated tasks should
+          be considered more important.
+
+How would you explain this algorithm to another junior developer?
+      This algorithm is a task ranking system. It gives each task a score based on different
+       factors like priority, deadlines, status,and tags.
+      
+      Each factor adds or subtracts points:
+          Priority gives a base score
+          Due dates increase urgency
+          Completed tasks lose points
+          Important tags add small bonuses
+          Recently updated tasks get a slight boost
+Think of it like a checklist where each rule adds or removes points, 
+   and the final number determines how important the task is.
+
+I tested my understanding by:
+    Walking through example scenarios and predicting scores before checking the results
+  Comparing different tasks (e.g., overdue vs high priority) to see how the scoring changes
+Asking follow-up questions to confirm how different conditions interact
+
+Based on my understanding, I would suggest the following improvements:
+  Make weights configurable
+Instead of hardcoding values like +35 or -50, move them into a configuration file or constants.
+ This makes it easier to adjust without changing code.
+
