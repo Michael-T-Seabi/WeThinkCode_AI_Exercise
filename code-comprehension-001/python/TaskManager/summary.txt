@@ -1,0 +1,397 @@
+#Exercise Part 1: Understanding a Specific Feature
+
+//The main components involved in task creation/updates
+
+        .cli.py
+This is the user-facing entry point. It reads commands from the terminal and turns them into actions
+. For example, when the user types a command to create a task or change its status, this file parses the arguments and
+ sends the request to the task manager.
+
+        .task_manager.py
+This is the core business logic layer. It is the most important file for task creation and updates because it decides what should happen when a task is created or changed.
+ It handles things like:
+                    building a new Task
+                    setting default values
+                    updating status, priority, due date, or tags
+                    updating timestamps
+
+        .models.py
+This defines the domain model. It gives structure to the data by defining:
+                Task
+                TaskStatus
+                TaskPriority
+    This file tells us what a task is and what fields it should have.
+
+        .storage.py
+This is the persistence layer. It is responsible for saving tasks to disk and loading them back. It handles:
+                    writing tasks into tasks.json
+                    reading tasks from tasks.json
+                    converting between Python objects and JSON data
+    So the system is split into:
+                input handling (cli.py)
+                business rules (task_manager.py)
+                data structure (models.py)
+                storage (storage.py)
+
+    //The execution flow when a task is created/updated
+         
+         ..When a task is created
+    The user runs a terminal command such as:
+1.python cli.py create "Finish report" -d "Write section 2" -p 3
+2.cli.py uses argparse to read the command and arguments.
+3.cli.py calls a method in task_manager.py, such as a create task method.
+4.task_manager.py creates a new Task object using the structure from models.py.
+
+5.During creation, it sets values such as:
+unique ID
+title
+description
+default status
+priority
+timestamps
+optional due date
+optional tags
+
+6.task_manager.py sends that task to storage.py.
+7.storage.py saves the task into tasks.json.
+8.cli.py prints feedback to the user, such as the created task ID.
+
+        ..When a task is updated
+    The user runs a command such as:
+1.python cli.py status <task_id> done
+2.cli.py parses the command and arguments.
+3.cli.py calls the relevant update method in task_manager.py.
+4.task_manager.py fetches the task from storage.py.
+
+5.If the task exists, task_manager.py changes the requested field, for example:
+status
+priority
+due_date
+tags
+
+6.It updates updated_at.
+7.If the new status is done, it also sets completed_at.
+8.The updated task is saved again through storage.py.
+9.cli.py prints a success message or the updated task details.
+
+        //How storage works
+The app does not use a database. Instead, it uses JSON as a lightweight persistence method.
+
+    Saving data
+When a task is created or updated:
+    the task object is converted into JSON-friendly data.
+    Enums and dates are transformed into values that JSON can store.
+    The full task list is written into tasks.json.
+
+    Loading data
+When the app needs tasks:
+    storage.py opens tasks.json
+    JSON content is read
+    The raw data is converted back into Task objects
+    Those objects are returned to task_manager.py
+
+What this means
+Tasks survive between program runs
+The system behaves like a small persistent app
+JSON replaces a full database for simplicity
+This is a good design for a beginner or small CLI project because it avoids database setup while still keeping data persistent.
+
+   //interesting design patterns discovered
+
+Yes, there are a few good design ideas in the project.
+
+1. Separation of concerns
+The project separates responsibilities clearly:
+    cli.py handles input
+    task_manager.py handles logic
+    models.py defines data
+    storage.py handles persistence
+This is one of the strongest patterns in the codebase because it keeps the app organized.
+
+2. Layered design
+The code follows a small layered architecture:
+    presentation layer → cli.py
+    business layer → task_manager.py
+    data/storage layer → storage.py
+    domain layer → models.py
+This is not a large enterprise architecture, but it follows the same idea.
+
+##Exercise Part 2: Deepen Understanding Through Guided Questions
+
+1. My initial understanding
+
+I understood the project at a high level as a simple Python CLI application that:
+    takes user input through the terminal
+    processes it in task_manager.py
+    and stores data in a JSON file via storage.py
+I believed the flow was straightforward:
+    CLI → Task Manager → Storage → JSON
+    While this was correct, it was also oversimplified.
+
+What I discovered
+
+Through guided questioning, I realized that:
+    The system is not just passing data around — it is applying business rules, especially in task_manager.py
+    The CLI is intentionally thin, meaning it should not contain logic, only routing
+    The Task object is central, and everything revolves around its lifecycle
+    Updates are not just field changes — they include side effects, like updating timestamps and setting completed_at
+    Data persistence is not just saving — it involves serialization and reconstruction of objects
+
+So my understanding evolved from:
+    “This is a simple flow-based program”
+to:
+    “This is a layered system with clear separation between input, business logic, domain model, and persistence”
+
+    //2. Key insights the guided questions helped me uncover
+
+The guided questions helped me think deeper about the code instead of just reading it.
+    
+    Insight 1: Separation of responsibilities is intentional
+I learned that:
+        cli.py should not contain business logic
+        all rules (like status updates, timestamps, validations) belong in task_manager.py
+        This helped me understand where to implement new features properly
+
+    Insight 2: Data flow is more structured than I thought
+Instead of just “passing data,” I realized:
+        Data is transformed at each layer
+        cli.py → raw user input
+        task_manager.py → structured logic + validation
+        models.py → formal structure
+        storage.py → serialized format
+        This gave me a clearer mental model of how data moves through the system
+
+    ##3. Misconceptions that were clarified
+Misconception 1: The CLI is where logic happens
+I initially thought some logic might live in cli.py.
+     Clarified:
+     The CLI only routes commands
+     All real logic belongs in task_manager.py
+
+Misconception 2: Updating a task is just changing a value
+I assumed updates were simple assignments.
+     Clarified:
+     Updates often include business rules and side effects
+     Example: marking a task as done also sets completed_at
+
+Misconception 3: JSON storage is just “saving data”
+I thought storage was just writing data to a file.
+     Clarified:
+     Storage involves encoding and decoding objects
+     There is a transformation between Python objects and JSON format
+
+###Exercise Part 3: Mapping Data Flow
+
+//Data flow diagram
+
+[User in Terminal]
+        |
+        v
+[cli.py]
+Reads command and arguments
+        |
+        v
+[task_manager.py]
+Applies business logic
+- finds task
+- updates status
+- updates timestamps
+        |
+        v
+[models.py]
+Task object holds the updated state
+        |
+        v
+[storage.py]
+Loads current tasks
+Replaces updated task
+Saves full task list
+        |
+        v
+[tasks.json]
+Persistent stored data
+        |
+        v
+[cli.py output]
+Shows success message / updated task
+
+
+      //State changes that occur during task completion
+When a task is marked as complete, several state changes happen.
+
+      Before completion
+A task may look like this:
+         status = todo or in_progress or review
+         completed_at = None
+         updated_at = previous timestamp
+      
+      After completion
+When the user sets the status to done, the application changes:
+         status becomes DONE
+         updated_at becomes the current date/time
+         completed_at becomes the current date/time
+         So task completion is not just one field change. It includes:
+Lifecycle change
+The task moves into its final workflow stage.
+Audit/update change
+The app records when the task was last modified.
+Completion event recording
+The app stores the exact time the task was completed.
+
+     //Potential points of failure in this process
+There are several places where task completion could fail.
+
+     1. Invalid task ID
+If the user provides a task ID that does not exist:
+   task_manager.py will not find the task
+   the update cannot continue
+   This is one of the most common failure points.
+
+     2. Invalid status value
+If the user enters a status that is not allowed:
+   cli.py may reject it through argparse
+   or conversion to TaskStatus may fail
+For example:
+            python cli.py status 123 finished
+If finished is not a valid enum value, the process breaks.
+ 
+     3.Error handling gaps
+If exceptions are not caught properly:
+   the user may see a crash instead of a clean error message
+   partial updates might become harder to trace
+
+  ### How the application persists these changes
+
+The application persists changes through JSON file storage.
+The persistence process
+When a task is completed:
+     task_manager.py updates the Task object in memory
+     storage.py loads the current collection of tasks
+     it replaces or updates the matching task
+     it writes the full updated task list back into tasks.json
+So persistence is not done one field at a time. Instead, the application usually:
+     loads the task list
+     modifies the relevant object
+     saves the whole collection again
+
+What gets persisted
+The JSON file stores the task’s updated state, including:
+     id
+     title
+     description
+     priority
+     status
+     created_at
+     updated_at
+     due_date
+     completed_at
+     tags
+
+Example persistence idea
+
+Before saving, Python objects must be converted into JSON-friendly values:
+     enums become strings or numeric values
+     dates become strings
+
+Then when loading:
+     strings are converted back into TaskStatus, TaskPriority, and datetime values
+
+That means persistence has two important parts:
+     encoding
+     decoding
+
+Why this matters
+     This allows the completed task to remain complete even after the program closes and reopens.
+Without persistence:
+     the status would reset when the app exits
+With persistence:
+     the task stays marked as done in future runs
+
+
+####Exercise Part 4: Reflection and Presentation
+
+This application is a Python command-line Task Manager that allows users to create, 
+update, and track tasks, with data stored locally in a JSON file.
+
+The architecture follows a layered design, with clear separation of responsibilities:
+
+     * cli.py (Presentation Layer)
+          Handles user input from the terminal and routes commands.
+     * task_manager.py (Business Logic Layer)
+         Contains the core logic for creating, updating, and managing tasks.
+     * models.py (Domain Layer)
+         Defines the structure of a task, including status, priority, and timestamps.
+     * storage.py (Persistence Layer)
+         Handles saving and loading tasks from a JSON file.
+
+This separation makes the system easier to maintain and extend.
+
+2. How the Three Key Features Work:
+
+Task Creation
+     The user enters a command in the terminal.
+     cli.py parses the input and calls task_manager.py.
+     A new Task object is created using the structure from models.py.
+     The task is saved to tasks.json via storage.py.
+  Flow:
+CLI → Task Manager → Model → Storage
+
+Task Prioritization
+     Each task has a TaskPriority value (Low, Medium, High, Urgent).
+     The user can set or update priority through a CLI command.
+     The system updates the task and saves the change.
+     This allows users to organize tasks based on urgency.
+
+Task Completion
+     The user updates a task’s status to done.
+  The system:
+         changes the status
+         updates updated_at
+         sets completed_at
+      This shows that one action can trigger multiple business rules.
+
+3. One Interesting Design Pattern
+
+One key pattern I discovered is Separation of Concerns with Layered Architecture.
+Each file has a clear responsibility:
+     CLI handles input
+     Task Manager handles logic
+     Models define structure
+     Storage handles persistence
+
+This makes it easy to:
+     add features (like CSV export)
+     implement business rules (like overdue tasks)
+     test functionality independently
+
+4. What Was Most Challenging & How Prompts Helped
+
+The most challenging part was understanding:
+     how data flows across files
+     where business logic should be placed
+     how updates trigger side effects like timestamps
+
+At first, the project looked simple, but I didn’t fully understand the structure.
+The AI prompts helped by:
+         guiding me to identify the domain model first
+         encouraging me to trace features end-to-end
+         helping me focus on why the code is structured this way
+
+Instead of just reading code, I learned to:
+     analyze layers
+     follow data flow
+     understand design decisions
+
+5. My Process for Gaining Understanding
+
+Instead of jumping straight into coding, I:
+     Identified the core entity (Task)
+     Traced how a feature works from CLI → storage
+     Looked for patterns in how features are implemented
+     Used guided prompts to ask better questions
+This approach helped me understand not just the code, but the system design.
+
+ Closing Line
+
+This project showed me that even a small CLI application can follow real-world architectural patterns,
+ and that understanding the structure and data flow is key to confidently adding new features.
